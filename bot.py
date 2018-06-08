@@ -170,6 +170,9 @@ class MyBot(sc2.BotAI):
             if self.can_afford(OVERLORD) and larvae.exists:
                 await self.do(larvae.random.train(OVERLORD))
 
+        if self.attack_wave_counter >= 1 and len(self.units(DRONE)) < 16 and self.can_afford(DRONE) and larvae.exists:
+            await self.do(larvae.random.train(DRONE))
+
         if self.units(SPAWNINGPOOL).ready.exists:
             if larvae.exists and self.can_afford(ZERGLING):
                 await self.do(larvae.random.train(ZERGLING))
