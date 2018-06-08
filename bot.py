@@ -19,8 +19,8 @@ class MyBot(sc2.BotAI):
         self.attack_wave_counter = 0
         self.adrenal_glands_started = False
         self.num_extractors = 0
-        self.has_lair = False
-    
+        self.first_overlord_built = False
+
     async def setup_extractors(self):
         drone = self.workers.prefer_idle.random
         idle_extractors = self.state.vespene_geyser.filter(is_idle_extractor)
@@ -98,11 +98,23 @@ class MyBot(sc2.BotAI):
         else:
             return True
 
+    async def wait_for_overlord(self):
+        larvae = self.units(LARVA)
+        if self.first_overlord_built:
+            return False
+        if self.can_afford(OVERLORD) and larvae.exists:
+            await self.do(larvae.random.train(OVERLORD))
+            self.first_overlord_built = True
+            return False
+        return True
+
     async def on_step(self, iteration):
         if iteration == 0:
             await self.chat_send("(glhf)")
 
         if await self.should_wait_for_spawning_pool():
+            return
+        if await self.wait_for_overlord():
             return
         if iteration % 100 == 0 and self.attack_wave_counter >= 1:
             await self.setup_extractors()
@@ -131,7 +143,9 @@ class MyBot(sc2.BotAI):
         if iteration % 60 == 0:
             await self.run_zerg_upgrade_logic()
 
-        if self.supply_left < 2:
+
+
+        if self.supply_left < 2 and self.attack_wave_counter >= 1:
             if self.can_afford(OVERLORD) and larvae.exists:
                 await self.do(larvae.random.train(OVERLORD))
 
