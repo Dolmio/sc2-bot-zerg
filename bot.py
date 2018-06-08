@@ -14,6 +14,7 @@ class MyBot(sc2.BotAI):
         self.queeen_started = False
         self.mboost_started = False
         self.attack_wave_counter = 0
+        self.adrenal_glands_started = False
     
     async def setup_extractors(self):
         drone = self.workers.prefer_idle.random
@@ -46,14 +47,27 @@ class MyBot(sc2.BotAI):
                 await self.do(sp.first(RESEARCH_ZERGLINGMETABOLICBOOST))
                 self.mboost_started = True
 
+            hatcheries = self.units(HATCHERY).ready
+            if self.mboost_started and not self.units(LAIR).exists and self.can_afford(UPGRADETOLAIR_LAIR):
+                print("UPGRADING TO LAIR")
+                await self.do(hatcheries.first(UPGRADETOLAIR_LAIR))
+
+            lairs = self.units(LAIR).ready
+            if self.mboost_started and lairs.exists and not self.units(HIVE).exists and self.can_afford(UPGRADETOHIVE_HIVE):
+                print("UPGRADING TO HIVE")
+                await self.do(lairs.first(UPGRADETOHIVE_HIVE))
+
+
             if self.vespene >= 200 and self.mboost_started and self.units(HIVE).ready.exists:
-                await self.do(sp.first(RESEARCH_ZERGLINGADRENALGLANDS))
+                if not self.adrenal_glands_started:
+                    await self.do(sp.first(RESEARCH_ZERGLINGADRENALGLANDS))
+                    self.adrenal_glands_started = True
+                    print("UPGRADE ZERGLINGADRENALGLANDS")
                 if not self.moved_workers_from_gas:
                     self.moved_workers_from_gas = True
                     for drone in self.workers:
                         m = self.state.mineral_field.closer_than(10, drone.position)
                         await self.do(drone.gather(m.random, queue=True))
-
 
 
     async def on_step(self, iteration):
@@ -84,7 +98,8 @@ class MyBot(sc2.BotAI):
             if AbilityId.EFFECT_INJECTLARVA in abilities:
                 await self.do(queen(EFFECT_INJECTLARVA, hatchery))
 
-        await self.run_zerg_upgrade_logic()
+        if iteration % 60 == 0:
+            await self.run_zerg_upgrade_logic()
 
         if self.supply_left < 2:
             if self.can_afford(OVERLORD) and larvae.exists:
