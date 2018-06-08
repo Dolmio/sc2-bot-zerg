@@ -143,13 +143,15 @@ class MyBot(sc2.BotAI):
 
         target = self.known_enemy_structures.random_or(self.enemy_start_locations[0]).position
 
-        attack_wave_size = 18
+        attack_wave_size = 48
         idle_zerglings = self.units(ZERGLING).idle
         attackers = []
         if self.attack_wave_counter == 0 and len(idle_zerglings) >= 6:
             print("sending first attack wave")
-            attackers = idle_zerglings[0:6]
+            for zerg in idle_zerglings[0:6]:
+                await self.do(zerg.move(self.enemy_start_locations[0]))
             self.attack_wave_counter += 1
+        
         elif len(idle_zerglings) >= attack_wave_size:
             self.attack_wave_counter += 1
             print("sending attack wave ", self.attack_wave_counter)
