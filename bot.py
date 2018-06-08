@@ -14,6 +14,30 @@ class MyBot(sc2.BotAI):
         self.moved_workers_from_gas = False
         self.queeen_started = False
         self.mboost_started = False
+    
+    async def setup_extractors(self):
+        drone = self.workers.prefer_idle.random
+        idle_extractors = self.state.vespene_geyser.filter(lambda vg: vg.name == "Extractor" and vg.assigned_harvesters == 0)
+        idle_extractors = idle_extractors.prefer_close_to(drone.position)
+        if idle_extractors.exists:
+            print("assigning worker to idle extractor")
+            err = await self.do(drone.gather(idle_extractors.first))
+
+        available = self.state.vespene_geyser.filter(lambda vg: vg.name != "Extractor")
+        if available.empty:
+            print("no available geysers")
+            return
+        
+        if not self.can_afford(EXTRACTOR):
+            print("can't afford extractor")
+            return
+
+        drone = self.workers.prefer_idle.random
+        target = available.closest_to(drone.position)
+        print("building extractor at", target.position)
+        err = await self.do(drone.build(EXTRACTOR, target))
+        if not err:
+            print("ok")
 
     async def run_zerg_upgrade_logic(self):
         if self.vespene >= 100:
@@ -35,6 +59,9 @@ class MyBot(sc2.BotAI):
     async def on_step(self, iteration):
         if iteration == 0:
             await self.chat_send("(glhf)")
+        
+        if iteration % 100 == 0:
+            await self.setup_extractors()
 
         if not self.units(HATCHERY).ready.exists:
             for unit in self.workers | self.units(ZERGLING) | self.units(QUEEN):
@@ -45,12 +72,8 @@ class MyBot(sc2.BotAI):
         larvae = self.units(LARVA)
 
         target = self.known_enemy_structures.random_or(self.enemy_start_locations[0]).position
-        attack_wave_size = 30
-        if len(self.units(ZERGLING).idle) >= attack_wave_size:
-            for zl in self.units(ZERGLING).idle:
-                await self.do(zl.attack(target))
-
-
+        for zl in self.units(ZERGLING).idle:
+            await self.do(zl.attack(target))
 
         for queen in self.units(QUEEN).idle:
             abilities = await self.get_available_abilities(queen)
@@ -115,7 +138,7 @@ def main():
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, ZergRushBot()),
         Computer(Race.Terran, Difficulty.Medium)
-    ], realtime=True, save_replay_as="ZvT.SC2Replay")
+    ], realtime=False, save_replay_as="ZvT.SC2Replay")
 
 if __name__ == '__main__':
     main()
