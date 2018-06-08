@@ -21,9 +21,9 @@ class MyBot(sc2.BotAI):
         self.num_extractors = 0
         self.first_overlord_built = False
         self.has_lair = False
-
+        self.zerg_build_pause = False
         self.attack_wave_size = 36
-    
+
     async def setup_extractors(self):
         drone = self.workers.prefer_idle
         if drone.empty:
@@ -58,6 +58,7 @@ class MyBot(sc2.BotAI):
         drone = drone.random
         target = available.closest_to(drone.position)
         err = await self.do(drone.build(EXTRACTOR, target))
+        self.zerg_build_pause = False
         if not err:
             print("built extractor at", target.position)
             self.num_extractors += 1
@@ -67,18 +68,22 @@ class MyBot(sc2.BotAI):
         if self.vespene >= 100:
             sp = self.units(SPAWNINGPOOL).ready
             if sp.exists and self.minerals >= 100 and not self.mboost_started:
+                print("RESEARCH_ZERGLINGMETABOLICBOOST")
                 await self.do(sp.first(RESEARCH_ZERGLINGMETABOLICBOOST))
+                self.zerg_build_pause = False
                 self.mboost_started = True
 
             hatcheries = self.units(HATCHERY).ready
             if self.mboost_started and not self.units(LAIR).exists and self.can_afford(UPGRADETOLAIR_LAIR):
                 print("UPGRADING TO LAIR")
                 self.has_lair = True
+                self.zerg_build_pause = False
                 await self.do(hatcheries.first(UPGRADETOLAIR_LAIR))
 
             lairs = self.units(LAIR).ready
             if self.mboost_started and lairs.exists and not self.units(HIVE).exists and self.can_afford(UPGRADETOHIVE_HIVE):
                 print("UPGRADING TO HIVE")
+                self.zerg_build_pause = False
                 await self.do(lairs.first(UPGRADETOHIVE_HIVE))
 
 
@@ -86,6 +91,7 @@ class MyBot(sc2.BotAI):
                 if not self.adrenal_glands_started:
                     await self.do(sp.first(RESEARCH_ZERGLINGADRENALGLANDS))
                     self.adrenal_glands_started = True
+                    self.zerg_build_pause = False
                     print("UPGRADE ZERGLINGADRENALGLANDS")
                 if not self.moved_workers_from_gas:
                     self.moved_workers_from_gas = True
@@ -152,11 +158,12 @@ class MyBot(sc2.BotAI):
             for zerg in idle_zerglings[0:6]:
                 await self.do(zerg.move(self.enemy_start_locations[0]))
             self.attack_wave_counter += 1
-        
+
         elif len(idle_zerglings) >= self.attack_wave_size:
             self.attack_wave_counter += 1
             self.attack_wave_size = min(self.attack_wave_size + 9, 80)
             print("sending attack wave ", self.attack_wave_counter)
+            self.zerg_build_pause = True
             attackers = idle_zerglings
 
         for zl in attackers:
@@ -173,12 +180,14 @@ class MyBot(sc2.BotAI):
         if self.supply_left < 2 and self.attack_wave_counter >= 1:
             if self.can_afford(OVERLORD) and larvae.exists:
                 await self.do(larvae.random.train(OVERLORD))
+                self.zerg_build_pause = False
 
         if self.attack_wave_counter >= 1 and len(self.units(DRONE)) < 16 and self.can_afford(DRONE) and larvae.exists:
             await self.do(larvae.random.train(DRONE))
+            self.zerg_build_pause = False
 
         if self.units(SPAWNINGPOOL).ready.exists:
-            if larvae.exists and self.can_afford(ZERGLING):
+            if larvae.exists and self.can_afford(ZERGLING) and not self.zerg_build_pause:
                 await self.do(larvae.random.train(ZERGLING))
 
         if self.units(EXTRACTOR).ready.exists and not self.moved_workers_to_gas:
@@ -195,23 +204,26 @@ class MyBot(sc2.BotAI):
                     self.spawning_pool_started = True
                     print("building hatchery at", pos)
                     await self.do(self.workers.random.build(HATCHERY, pos))
+                    self.zerg_build_pause = False
                     break
 
         if self.drone_counter < 3:
             if self.can_afford(DRONE):
                 self.drone_counter += 1
                 await self.do(larvae.random.train(DRONE))
+                self.zerg_build_pause = False
 
         elif not self.queeen_started and self.units(SPAWNINGPOOL).ready.exists:
             if self.can_afford(QUEEN):
                 r = await self.do(hatchery.train(QUEEN))
+                self.zerg_build_pause = False
                 if not r:
                     self.queeen_started = True
 
 def main():
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, MyBot()),
-        Computer(Race.Terran, Difficulty.Hard)
+        Computer(Race.Protoss, Difficulty.Hard)
     ], realtime=False, save_replay_as="ZvT.SC2Replay")
 
 if __name__ == '__main__':
