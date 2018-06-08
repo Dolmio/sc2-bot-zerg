@@ -21,6 +21,8 @@ class MyBot(sc2.BotAI):
         self.num_extractors = 0
         self.first_overlord_built = False
         self.has_lair = False
+
+        self.attack_wave_size = 36
     
     async def setup_extractors(self):
         drone = self.workers.prefer_idle
@@ -143,7 +145,6 @@ class MyBot(sc2.BotAI):
 
         target = self.known_enemy_structures.random_or(self.enemy_start_locations[0]).position
 
-        attack_wave_size = 48
         idle_zerglings = self.units(ZERGLING).idle
         attackers = []
         if self.attack_wave_counter == 0 and len(idle_zerglings) >= 6:
@@ -152,8 +153,9 @@ class MyBot(sc2.BotAI):
                 await self.do(zerg.move(self.enemy_start_locations[0]))
             self.attack_wave_counter += 1
         
-        elif len(idle_zerglings) >= attack_wave_size:
+        elif len(idle_zerglings) >= self.attack_wave_size:
             self.attack_wave_counter += 1
+            self.attack_wave_size = min(self.attack_wave_size + 9, 80)
             print("sending attack wave ", self.attack_wave_counter)
             attackers = idle_zerglings
 
@@ -209,7 +211,7 @@ class MyBot(sc2.BotAI):
 def main():
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, MyBot()),
-        Computer(Race.Terran, Difficulty.Medium)
+        Computer(Race.Terran, Difficulty.Hard)
     ], realtime=False, save_replay_as="ZvT.SC2Replay")
 
 if __name__ == '__main__':
