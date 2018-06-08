@@ -5,7 +5,7 @@ from sc2 import Race, Difficulty
 from sc2.constants import *
 from sc2.player import Bot, Computer
 
-class ZergRushBot(sc2.BotAI):
+class MyBot(sc2.BotAI):
     def __init__(self):
         self.drone_counter = 0
         self.extractor_started = False
