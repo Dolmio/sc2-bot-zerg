@@ -20,6 +20,8 @@ class MyBot(sc2.BotAI):
         self.adrenal_glands_started = False
         self.num_extractors = 0
         self.first_overlord_built = False
+        self.has_lair = False
+
 
     async def setup_extractors(self):
         drone = self.workers.prefer_idle.random
