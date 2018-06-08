@@ -20,14 +20,21 @@ class MyBot(sc2.BotAI):
         self.adrenal_glands_started = False
         self.num_extractors = 0
         self.first_overlord_built = False
-
+        self.has_lair = False
+    
     async def setup_extractors(self):
-        drone = self.workers.prefer_idle.random
+        drone = self.workers.prefer_idle
+        if drone.empty:
+            print("no workers left to assign to extractor")
+            return
+        drone = drone.random
+
         idle_extractors = self.state.vespene_geyser.filter(is_idle_extractor)
         idle_extractors = idle_extractors.prefer_close_to(drone.position)
         if idle_extractors.exists:
             print("assigning worker to idle extractor")
             err = await self.do(drone.gather(idle_extractors.first))
+            return
 
         available = self.state.vespene_geyser.filter(lambda vg: vg.name != "Extractor")
         if available.empty:
@@ -42,7 +49,11 @@ class MyBot(sc2.BotAI):
             print("no need for an extractor yet")
             return
 
-        drone = self.workers.prefer_idle.random
+        drone = self.workers.prefer_idle
+        if drone.empty:
+            print("no workers left to build")
+            return
+        drone = drone.random
         target = available.closest_to(drone.position)
         err = await self.do(drone.build(EXTRACTOR, target))
         if not err:
@@ -124,16 +135,28 @@ class MyBot(sc2.BotAI):
                 await self.do(unit.attack(self.enemy_start_locations[0]))
             return
 
-        hatchery = self.units(HATCHERY).ready.first
+        if self.units(HATCHERY).idle.exists:
+            hatchery = self.units(HATCHERY).idle.first
+        else:
+            hatchery = self.units(HATCHERY).ready.first
         larvae = self.units(LARVA)
 
         target = self.known_enemy_structures.random_or(self.enemy_start_locations[0]).position
-        attack_wave_size = 10
-        if len(self.units(ZERGLING).idle) >= attack_wave_size:
-            print("sending attack wave ", self.attack_wave_counter)
-            for zl in self.units(ZERGLING).idle:
-                await self.do(zl.attack(target))
+
+        attack_wave_size = 18
+        idle_zerglings = self.units(ZERGLING).idle
+        attackers = []
+        if self.attack_wave_counter == 0 and len(idle_zerglings) >= 6:
+            print("sending first attack wave")
+            attackers = idle_zerglings[0:6]
             self.attack_wave_counter += 1
+        elif len(idle_zerglings) >= attack_wave_size:
+            self.attack_wave_counter += 1
+            print("sending attack wave ", self.attack_wave_counter)
+            attackers = idle_zerglings
+
+        for zl in attackers:
+            await self.do(zl.attack(target))
 
         for queen in self.units(QUEEN).idle:
             abilities = await self.get_available_abilities(queen)
@@ -142,8 +165,6 @@ class MyBot(sc2.BotAI):
 
         if iteration % 60 == 0:
             await self.run_zerg_upgrade_logic()
-
-
 
         if self.supply_left < 2 and self.attack_wave_counter >= 1:
             if self.can_afford(OVERLORD) and larvae.exists:
