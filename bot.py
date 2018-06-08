@@ -72,8 +72,10 @@ class MyBot(sc2.BotAI):
         larvae = self.units(LARVA)
 
         target = self.known_enemy_structures.random_or(self.enemy_start_locations[0]).position
-        for zl in self.units(ZERGLING).idle:
-            await self.do(zl.attack(target))
+        attack_wave_size = 30
+        if len(self.units(ZERGLING).idle) >= attack_wave_size:
+            for zl in self.units(ZERGLING).idle:
+                await self.do(zl.attack(target))
 
         for queen in self.units(QUEEN).idle:
             abilities = await self.get_available_abilities(queen)
