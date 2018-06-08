@@ -5,6 +5,9 @@ from sc2 import Race, Difficulty
 from sc2.constants import *
 from sc2.player import Bot, Computer
 
+def is_idle_extractor(vg):
+    return vg.name == "Extractor" and vg.assigned_harvesters == 0 and vg.is_mine
+
 class MyBot(sc2.BotAI):
     def __init__(self):
         self.drone_counter = 0
@@ -18,7 +21,7 @@ class MyBot(sc2.BotAI):
     
     async def setup_extractors(self):
         drone = self.workers.prefer_idle.random
-        idle_extractors = self.state.vespene_geyser.filter(lambda vg: vg.name == "Extractor" and vg.assigned_harvesters == 0)
+        idle_extractors = self.state.vespene_geyser.filter(is_idle_extractor)
         idle_extractors = idle_extractors.prefer_close_to(drone.position)
         if idle_extractors.exists:
             print("assigning worker to idle extractor")
@@ -137,8 +140,10 @@ class MyBot(sc2.BotAI):
         if self.minerals > 500:
             for d in range(4, 15):
                 pos = hatchery.position.to2.towards(self.game_info.map_center, d)
+                pos = pos.offset([0, random.choice([d, -d])])
                 if await self.can_place(HATCHERY, pos):
                     self.spawning_pool_started = True
+                    print("building hatchery at", pos)
                     await self.do(self.workers.random.build(HATCHERY, pos))
                     break
 
