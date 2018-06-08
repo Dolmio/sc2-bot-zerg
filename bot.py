@@ -161,7 +161,7 @@ class MyBot(sc2.BotAI):
 
         elif len(idle_zerglings) >= self.attack_wave_size:
             self.attack_wave_counter += 1
-            self.attack_wave_size = min(self.attack_wave_size + 9, 80)
+            self.attack_wave_size = min(self.attack_wave_size + 3, 80)
             print("sending attack wave ", self.attack_wave_counter)
             self.zerg_build_pause = True
             attackers = idle_zerglings
