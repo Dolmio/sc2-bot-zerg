@@ -18,6 +18,8 @@ class MyBot(sc2.BotAI):
         self.mboost_started = False
         self.attack_wave_counter = 0
         self.adrenal_glands_started = False
+        self.num_extractors = 0
+        self.has_lair = False
     
     async def setup_extractors(self):
         drone = self.workers.prefer_idle.random
@@ -36,11 +38,16 @@ class MyBot(sc2.BotAI):
             print("can't afford extractor")
             return
 
+        if not self.has_lair and self.num_extractors > 0:
+            print("no need for an extractor yet")
+            return
+
         drone = self.workers.prefer_idle.random
         target = available.closest_to(drone.position)
-        print("building extractor at", target.position)
         err = await self.do(drone.build(EXTRACTOR, target))
         if not err:
+            print("built extractor at", target.position)
+            self.num_extractors += 1
             print("ok")
 
     async def run_zerg_upgrade_logic(self):
@@ -53,6 +60,7 @@ class MyBot(sc2.BotAI):
             hatcheries = self.units(HATCHERY).ready
             if self.mboost_started and not self.units(LAIR).exists and self.can_afford(UPGRADETOLAIR_LAIR):
                 print("UPGRADING TO LAIR")
+                self.has_lair = True
                 await self.do(hatcheries.first(UPGRADETOLAIR_LAIR))
 
             lairs = self.units(LAIR).ready
