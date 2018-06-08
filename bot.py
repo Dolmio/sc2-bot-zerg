@@ -8,12 +8,12 @@ from sc2.player import Bot, Computer
 class MyBot(sc2.BotAI):
     def __init__(self):
         self.drone_counter = 0
-        self.extractor_started = False
         self.spawning_pool_started = False
         self.moved_workers_to_gas = False
         self.moved_workers_from_gas = False
         self.queeen_started = False
         self.mboost_started = False
+        self.attack_wave_counter = 0
     
     async def setup_extractors(self):
         drone = self.workers.prefer_idle.random
@@ -60,7 +60,7 @@ class MyBot(sc2.BotAI):
         if iteration == 0:
             await self.chat_send("(glhf)")
         
-        if iteration % 100 == 0:
+        if iteration % 100 == 0 and self.attack_wave_counter >= 1:
             await self.setup_extractors()
 
         if not self.units(HATCHERY).ready.exists:
@@ -72,10 +72,12 @@ class MyBot(sc2.BotAI):
         larvae = self.units(LARVA)
 
         target = self.known_enemy_structures.random_or(self.enemy_start_locations[0]).position
-        attack_wave_size = 30
+        attack_wave_size = 10
         if len(self.units(ZERGLING).idle) >= attack_wave_size:
+            print("sending attack wave ", self.attack_wave_counter)
             for zl in self.units(ZERGLING).idle:
                 await self.do(zl.attack(target))
+            self.attack_wave_counter += 1
 
         for queen in self.units(QUEEN).idle:
             abilities = await self.get_available_abilities(queen)
@@ -111,15 +113,7 @@ class MyBot(sc2.BotAI):
                 self.drone_counter += 1
                 await self.do(larvae.random.train(DRONE))
 
-        if not self.extractor_started:
-            if self.can_afford(EXTRACTOR):
-                drone = self.workers.random
-                target = self.state.vespene_geyser.closest_to(drone.position)
-                err = await self.do(drone.build(EXTRACTOR, target))
-                if not err:
-                    self.extractor_started = True
-
-        elif not self.spawning_pool_started:
+        if not self.spawning_pool_started:
             if self.can_afford(SPAWNINGPOOL):
                 for d in range(4, 15):
                     pos = hatchery.position.to2.towards(self.game_info.map_center, d)
