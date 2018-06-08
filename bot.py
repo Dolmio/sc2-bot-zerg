@@ -69,11 +69,30 @@ class MyBot(sc2.BotAI):
                         m = self.state.mineral_field.closer_than(10, drone.position)
                         await self.do(drone.gather(m.random, queue=True))
 
+    async def should_wait_for_spawning_pool(self):
+        if self.spawning_pool_started:
+            return False
+        if self.can_afford(SPAWNINGPOOL):
+            hatchery = self.units(HATCHERY).ready.first
+            for d in range(4, 15):
+                pos = hatchery.position.to2.towards(self.game_info.map_center, d)
+                if await self.can_place(SPAWNINGPOOL, pos):
+                    drone = self.workers.closest_to(pos)
+                    err = await self.do(drone.build(SPAWNINGPOOL, pos))
+                    if not err:
+                        self.spawning_pool_started = True
+                        return False
+                    else:
+                        return True
+        else:
+            return True
 
     async def on_step(self, iteration):
         if iteration == 0:
             await self.chat_send("(glhf)")
-        
+
+        if await self.should_wait_for_spawning_pool():
+            return
         if iteration % 100 == 0 and self.attack_wave_counter >= 1:
             await self.setup_extractors()
 
@@ -127,17 +146,6 @@ class MyBot(sc2.BotAI):
             if self.can_afford(DRONE):
                 self.drone_counter += 1
                 await self.do(larvae.random.train(DRONE))
-
-        if not self.spawning_pool_started:
-            if self.can_afford(SPAWNINGPOOL):
-                for d in range(4, 15):
-                    pos = hatchery.position.to2.towards(self.game_info.map_center, d)
-                    if await self.can_place(SPAWNINGPOOL, pos):
-                        drone = self.workers.closest_to(pos)
-                        err = await self.do(drone.build(SPAWNINGPOOL, pos))
-                        if not err:
-                            self.spawning_pool_started = True
-                            break
 
         elif not self.queeen_started and self.units(SPAWNINGPOOL).ready.exists:
             if self.can_afford(QUEEN):
