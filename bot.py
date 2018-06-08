@@ -77,8 +77,8 @@ class MyBot(sc2.BotAI):
             return False
         if self.can_afford(SPAWNINGPOOL):
             hatchery = self.units(HATCHERY).ready.first
-            for d in range(4, 15):
-                pos = hatchery.position.to2.towards(self.game_info.map_center, d)
+            for d in range(8, 15):
+                pos = hatchery.position.to2.towards(self.game_info.map_center, -d)
                 if await self.can_place(SPAWNINGPOOL, pos):
                     drone = self.workers.closest_to(pos)
                     err = await self.do(drone.build(SPAWNINGPOOL, pos))
